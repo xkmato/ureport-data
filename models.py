@@ -62,20 +62,20 @@ class BaseDocument(orm.Document):
         obj.org = org
         for key, value in temba.__dict__.items():
             class_attr = getattr(cls, key, None)
-            if not class_attr:
+            if class_attr is None:
                 continue
-            if class_attr == orm.List or isinstance(class_attr, orm.List):
-                item_class = getattr(sys.modules[__name__], key.strip('s').capitalize())()
-                if isinstance(item_class, BaseDocument):
+            if isinstance(class_attr, orm.List):
+                item_class = getattr(sys.modules[__name__], key.rstrip('s').capitalize())
+                if issubclass(item_class, BaseDocument):
                     getattr(obj, key).extend(item_class.get_objects_from_uuids(org, getattr(temba, key)))
-                if isinstance(item_class, orm.EmbeddedDocument):
+                if issubclass(item_class, orm.EmbeddedDocument):
                     getattr(obj, key).extend(item_class.create_from_temba_list(getattr(temba, key)))
             elif class_attr == field.DynamicDocument:
-                item_class = getattr(sys.modules[__name__], key.capitalize())()
-                if isinstance(item_class, BaseDocument):
+                item_class = getattr(sys.modules[__name__], key.capitalize())
+                if issubclass(item_class, BaseDocument):
                     setattr(obj, key, item_class.get_or_fetch(org, getattr(temba, key)))
-                if isinstance(item_class, orm.EmbeddedDocument):
-                    setattr(obj, key, item_class.create_from_temba_list(getattr(temba, key)))
+                if issubclass(item_class, orm.EmbeddedDocument):
+                    setattr(obj, key, item_class.create_from_temba(getattr(temba, key)))
 
             else:
                 setattr(obj, key, value)
@@ -226,7 +226,7 @@ class Event(BaseDocument):
 #     value_type = field.Char()
 
 
-class RuleSet(orm.EmbeddedDocument):
+class Ruleset(orm.EmbeddedDocument):
     @classmethod
     def create_from_temba(cls, temba):
         rule_set = cls()
@@ -269,7 +269,7 @@ class Flow(BaseDocument):
     participants = field.Integer()
     runs = field.Integer()
     completed_runs = field.Integer()
-    rulesets = orm.List(type=RuleSet)
+    rulesets = orm.List(type=Ruleset)
 
 
 class Message(BaseDocument):
@@ -297,7 +297,7 @@ class RunValueSet(orm.EmbeddedDocument):
         run_value_set.node = temba.node
         run_value_set.category = temba.category
         run_value_set.text = temba.text
-        run_value_set.rule_value = temba.rule_vale
+        run_value_set.rule_value = temba.rule_value
         run_value_set.label = temba.label
         run_value_set.value = temba.value
         run_value_set.time = temba.time
@@ -441,3 +441,6 @@ Org.campaigns = orm.Lazy(type=Campaign, key='org._id')
 Org.broadcasts = orm.Lazy(type=Broadcast, key='org._id')
 Org.contacts = orm.Lazy(type=Contact, key='org._id')
 Org.groups = orm.Lazy(type=Group, key='org._id')
+Value = RunValueSet
+Step = FlowStep
+Categorie = CategoryStats

@@ -1,19 +1,26 @@
 import unittest
 from datetime import datetime
-from models import Org, Urn, Contact, Group, Broadcast, Campaign, Event, Flow, Label, Message, Run, Boundary
+from models import Org, Urn, Contact, Group, Broadcast, Campaign, Event, Flow, Label, Message, Run, Boundary, Result
 
 __author__ = 'kenneth'
 
 
 class FakeTemba(object):
+    __dict__ = {}
+
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
+            self.__dict__ = kwargs
             setattr(self, k, v)
 
 
 class TestModels(unittest.TestCase):
     def setUp(self):
-        self.org = Org()
+        org = Org()
+        org.api_token = '1232452525254'
+        org.name = 'test org'
+        org.save()
+        self.org = org
         self.urns = ['tel:1234', 'twitter:5678', '876565']
         self.temba_group = FakeTemba(uuid='090IOU98', name='test_group', size=1)
         self.temba_contact = FakeTemba(uuid='97976768', name='test_contact', urns=self.urns,
@@ -24,17 +31,17 @@ class TestModels(unittest.TestCase):
                                          created_on=datetime.now())
         self.temba_campaign = FakeTemba(uuid='IOUIU8908', name='test_campaign', group=self.temba_group.uuid,
                                         created_on=datetime.now())
+        self.rule_set = FakeTemba(uuid='iteueiot', label='some label', response_type='I')
+        self.temba_flow = FakeTemba(uuid='89077897897', name='test_flow', archived='T', labels=[], participants=3,
+                                    runs=3, completed_runs=2, rulesets=[self.rule_set], created_on=datetime.now())
         self.temba_event = FakeTemba(uuid='79079079078', campaign=self.temba_campaign.uuid, relative_to='yuyyer',
                                      offset=5, unit='something', delivery_hour=4, message='Some message',
                                      flow=self.temba_flow.uuid, created_on=datetime.now())
-        self.rule_set = FakeTemba(uuid='iteueiot', label='some label', response_type='I')
-        self.temba_flow = FakeTemba(uuid='89077897897', name='test_flow', archived='T', labels=[], participants=3, runs=3,
-                              completed_runs=2, rulesets=[self.rule_set], created_on=datetime.now())
         self.temba_label = FakeTemba(uuid='0789089789', name='test_label', count=5)
-        self.temba_message = FakeTemba(id=242, broadcast=self.temba_broadcast, contact=self.temba_contact, urn=self.urns[0],
-                                     status='S', type='F', labels=[self.temba_label.uuid], direction='I', archived='F',
-                                     text='Hi There', created_on=datetime.now(), delivered_on=datetime.now(),
-                                     sent_on=datetime.now())
+        self.temba_message = FakeTemba(id=242, broadcast=self.temba_broadcast.id, contact=self.temba_contact.uuid,
+                                       urn=self.urns[0], status='S', type='F', labels=[self.temba_label.name],
+                                       direction='I', archived='F', text='Hi There', created_on=datetime.now(),
+                                       delivered_on=datetime.now(), sent_on=datetime.now())
         self.temba_run_value_set = FakeTemba(node='90890', category='SC', text='Some Text', rule_value='Y', value='yes',
                                              label='some', time=datetime.now())
         self.temba_flow_step = FakeTemba(node='Some Node', text='Yo yo', value='youngh', type='I',
@@ -44,14 +51,14 @@ class TestModels(unittest.TestCase):
                                    create_on=datetime.now(), completed='y')
         self.temba_geometry = FakeTemba(type='some geo type', coordinates='gulu lango')
         self.temba_boundary = FakeTemba(boundary='some boundary', name='test_boundary', level='U', parent='b',
-                                        geometry=self.temba_geometry)
+                                        geometry=[self.temba_geometry])
         self.temba_category_stats = FakeTemba(count=10, label='stats')
         self.temba_result = FakeTemba(boundary=None, set=4, unset=5, open_ended='open ended?', label='result1',
                                       categories=[self.temba_category_stats])
 
     def test_create_from_temba(self):
         urn = Urn.create_from_temba(self.urns[0])
-        self.assertEqual((urn.type, urn.identity), tuple(self.urns[0]))
+        self.assertEqual((urn.type, urn.identity), tuple(self.urns[0].split(':')))
         group_count = Group.find().count()
         Group.create_from_temba(self.org, self.temba_group)
         self.assertEqual(group_count+1, Group.find().count())
@@ -85,6 +92,8 @@ class TestModels(unittest.TestCase):
         boundary_count = Boundary.find().count()
         boundary = Boundary.create_from_temba(self.org, self.temba_boundary)
         self.assertEqual(boundary_count+1, Boundary.find().count())
-        self.assertEqual(boundary.geometry.coordinates, self.temba_geometry.coordinates)
-        self.assertEqual(run_count+1, Run.find().count())
-
+        self.assertEqual(boundary.geometry[0].coordinates, self.temba_geometry.coordinates)
+        result_count = Result.find().count()
+        result = Result.create_from_temba(self.org, self.temba_result)
+        self.assertEqual(result_count+1, Result.find().count())
+        self.assertEqual(result.categories[0].label, self.temba_category_stats.label)
