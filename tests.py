@@ -16,10 +16,7 @@ class FakeTemba(object):
 
 class TestModels(unittest.TestCase):
     def setUp(self):
-        org = Org()
-        org.api_token = '1232452525254'
-        org.name = 'test org'
-        org.save()
+        org = Org.find_one()
         self.org = org
         self.urns = ['tel:1234', 'twitter:5678', '876565']
         self.temba_group = FakeTemba(uuid='090IOU98', name='test_group', size=1)

@@ -11,7 +11,7 @@ BROKER_URL = 'redis://'
 CELERYBEAT_SCHEDULE = {
     'sync-contacts': {
         'task': 'tasks.fetch_all',
-        'schedule': datetime.timedelta(minutes=5),
+        'schedule': datetime.timedelta(days=7),
         'args': ()
     }
 }

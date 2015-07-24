@@ -123,7 +123,7 @@ class BaseDocument(orm.Document):
     @classmethod
     def fetch(cls, org, uuid):
         func = "get_%s" % cls._collection
-        fetch = getattr(org.get_temba_client(), func.strip('s'))
+        fetch = getattr(org.get_temba_client(), func.rstrip('s'))
         return cls.create_from_temba(org, fetch(uuid))
 
     @classmethod
@@ -352,7 +352,7 @@ class FlowStep(orm.EmbeddedDocument):
 
 class Run(BaseDocument):
 
-    _collection = 'run'
+    _collection = 'runs'
 
     id = field.Integer()
     flow = field.DynamicDocument()
@@ -377,15 +377,13 @@ class CategoryStats(orm.EmbeddedDocument):
             obj_list.append(cls.create_from_temba(temba))
         return obj_list
 
-    _collection = 'category_stats'
-
     count = field.Integer()
     label = field.Char()
 
 
 class Result(BaseDocument):
 
-    _collection = 'result'
+    _collection = 'results'
 
     boundary = field.Char()
     set = field.Integer()
@@ -409,8 +407,6 @@ class Geometry(orm.EmbeddedDocument):
         for temba in temba_list:
             obj_list.append(cls.create_from_temba(temba))
         return obj_list
-
-    _collection = 'geometries'
 
     type = field.Char()
     coordinates = field.Char()

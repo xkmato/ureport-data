@@ -1,4 +1,5 @@
 from celery import Celery
+from temba.base import TembaException
 from models import Org, BaseDocument
 import settings
 
@@ -20,4 +21,8 @@ def fetch_all(entities=None):
     assert iter(entities)
     for org in Org.find():
         for entity in entities:
-            entity.fetch_objects(org)
+            try:
+                entity.fetch_objects(org)
+            except TembaException as e:
+                print e #Todo Do something with this guy
+                continue
