@@ -3,3 +3,4 @@ model_couch.py.txt
 .ipynb_checkpoints
 *.ipynb
 *.pyc
+celerybeat-schedule

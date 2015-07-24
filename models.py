@@ -4,7 +4,7 @@ import humongolus as orm
 import humongolus.field as field
 import sys
 from temba import TembaClient
-from temba.base import TembaNoSuchObjectError
+from temba.base import TembaNoSuchObjectError, TembaException
 import settings
 
 logging.basicConfig(format=settings.FORMAT)
@@ -62,18 +62,21 @@ class BaseDocument(orm.Document):
         obj.org = org
         for key, value in temba.__dict__.items():
             class_attr = getattr(cls, key, None)
-            if isinstance(class_attr, orm.List):
-                item_class = class_attr.__kwargs__.get('type')
+            if not class_attr:
+                continue
+            if class_attr == orm.List or isinstance(class_attr, orm.List):
+                item_class = getattr(sys.modules[__name__], key.strip('s').capitalize())()
                 if isinstance(item_class, BaseDocument):
                     getattr(obj, key).extend(item_class.get_objects_from_uuids(org, getattr(temba, key)))
                 if isinstance(item_class, orm.EmbeddedDocument):
-                    getattr(obj, key).extend(item_class.create_from_temba_list(org, getattr(temba, key)))
-            elif isinstance(class_attr, field.DynamicDocument):
-                item_class = getattr(sys.modules[__name__], key.capitalize())
+                    getattr(obj, key).extend(item_class.create_from_temba_list(getattr(temba, key)))
+            elif class_attr == field.DynamicDocument:
+                item_class = getattr(sys.modules[__name__], key.capitalize())()
                 if isinstance(item_class, BaseDocument):
                     setattr(obj, key, item_class.get_or_fetch(org, getattr(temba, key)))
                 if isinstance(item_class, orm.EmbeddedDocument):
-                    setattr(obj, key, item_class.create_from_temba_list(org, getattr(temba, key)))
+                    setattr(obj, key, item_class.create_from_temba_list(getattr(temba, key)))
+
             else:
                 setattr(obj, key, value)
         obj.save()
@@ -84,12 +87,14 @@ class BaseDocument(orm.Document):
         if uuid == None: return None
         if hasattr(cls, 'uuid'):
             obj = cls.find_one({'uuid': uuid})
+            if cls == Label:
+                obj = cls.find_one({'name': uuid})
         else:
             obj = cls.find_one({'id': uuid})
         if not obj:
             try:
                 obj = cls.fetch(org, uuid)
-            except TembaNoSuchObjectError:
+            except (TembaNoSuchObjectError, TembaException):
                 obj = None
         return obj
 
@@ -129,10 +134,13 @@ class BaseDocument(orm.Document):
         fetch_all = getattr(org.get_temba_client(), func)
         try:
             objs = cls.create_from_temba_list(org, fetch_all(after=after))
-            print objs
+            if not ls:
+                ls = LastSaved()
+            ls.coll = cls._collection
+            ls.last_saved = datetime.now(tz=org.timezone)
+            ls.save()
         except TypeError:
             objs = cls.create_from_temba_list(org, fetch_all())
-            print objs
         return objs
 
 
@@ -143,25 +151,18 @@ class Group(BaseDocument):
     name = field.Char()
     size = field.Integer()
 
-    @classmethod
-    def create_from_temba(cls, org, temba):
-        group = cls()
-        group.org = org
-        group.uuid = temba.uuid
-        group.name = temba.name
-        group.size = temba.size
-        group.save()
-        return group
 
-
-class URN(orm.EmbeddedDocument):
+class Urn(orm.EmbeddedDocument):
     type = field.Char()
     identity = field.Char()
 
     @classmethod
     def create_from_temba(cls, temba):
         urn = cls()
-        urn.type, urn.identity = tuple(temba.split(':'))
+        if len(temba.split(':')) > 1:
+            urn.type, urn.identity = tuple(temba.split(':'))
+            return urn
+        urn.identity = temba
         return urn
 
     @classmethod
@@ -175,21 +176,9 @@ class URN(orm.EmbeddedDocument):
 class Contact(BaseDocument):
     _collection = 'contacts'
 
-    @classmethod
-    def create_from_temba(cls, org, temba):
-        contact = cls()
-        contact.org = org
-        contact.uuid = temba.uuid
-        contact.name = temba.name
-        contact.language = temba.language
-        contact.groups.extend(Group.get_objects_from_uuids(org, temba.groups))
-        contact.urns.extend(URN.create_from_temba_list(temba.urns))
-        contact.save()
-        return contact
-
     uuid = field.Char()
     name = field.Char()
-    urns = orm.List(type=URN)
+    urns = orm.List(type=Urn)
     groups = orm.List(type=Group)
     language = field.Char()
     fields = field.Char()
@@ -199,25 +188,11 @@ class Broadcast(BaseDocument):
     _collection = 'broadcasts'
 
     id = field.Integer()
-    urns = orm.List(type=URN)
+    urns = orm.List(type=Urn)
     contacts = orm.List(type=Contact)
     groups = orm.List(Group)
     text = field.Char()
     status = field.Char()
-
-    @classmethod
-    def create_from_temba(cls, org, temba):
-        broadcast = cls()
-        broadcast.org = org
-        broadcast.id = temba.id
-        broadcast.text = temba.text
-        broadcast.status = temba.status
-        broadcast.created_on = temba.created_on
-        broadcast.urns.extend(URN.create_from_temba_list(temba.urns))
-        broadcast.contacts.extend(Contact.get_objects_from_uuids(org, temba.contacts))
-        broadcast.groups.extend(Group.get_objects_from_uuids(org, temba.groups))
-        broadcast.save()
-        return broadcast
 
 
 class Campaign(BaseDocument):
@@ -229,21 +204,6 @@ class Campaign(BaseDocument):
 
 
 class Event(BaseDocument):
-    @classmethod
-    def create_from_temba(cls, org, temba):
-        event = cls()
-        event.org = org
-        event.uuid = temba.uuid
-        event.campaign = Campaign.get_or_fetch(org, temba.campaign)
-        event.relative_to = temba.relative_to
-        event.offset = temba.offset
-        event.unit = temba.unit
-        event.delivery_hour = temba.delivery_hour
-        event.message = temba.message
-        event.flow = Flow.get_or_fetch(org, temba.flow)
-        event.created_on = temba.created_on
-        event.save()
-        return event
 
     _collection = 'events'
 
@@ -257,22 +217,13 @@ class Event(BaseDocument):
     flow = field.DynamicDocument()
 
 
-class Field(BaseDocument):
-    @classmethod
-    def create_from_temba(cls, org, temba):
-        _field = cls()
-        _field.org = org
-        _field.key = temba.key
-        _field.label = temba.label
-        _field.value_type = temba.value_type
-        _field.save()
-        return _field
-
-    _collection = 'fields'
-
-    key = field.Char()
-    label = field.Char()
-    value_type = field.Char()
+# class Field(BaseDocument):
+#
+#     _collection = 'fields'
+#
+#     key = field.Char()
+#     label = field.Char()
+#     value_type = field.Char()
 
 
 class RuleSet(orm.EmbeddedDocument):
@@ -308,54 +259,20 @@ class Label(BaseDocument):
 
 
 class Flow(BaseDocument):
-    @classmethod
-    def create_from_temba(cls, org, temba):
-        flow = cls()
-        flow.org = org
-        flow.uuid = temba.uuid
-        flow.name = temba.name
-        flow.archived = temba.archived
-        flow.labels = temba.labels
-        flow.participants = temba.participants
-        flow.runs = temba.runs
-        flow.complete_runs = temba.complete_runs
-        flow.rulesets.append(RuleSet.create_from_temba_list(temba.rulesets))
-        flow.save()
-        return flow
 
     _collection = 'flows'
 
     uuid = field.Char()
     name = field.Char()
     archived = field.Char()
-    labels = field.Char()
+    labels = orm.List(type=Label)
     participants = field.Integer()
     runs = field.Integer()
-    complete_runs = field.Integer()
+    completed_runs = field.Integer()
     rulesets = orm.List(type=RuleSet)
 
 
 class Message(BaseDocument):
-    @classmethod
-    def create_from_temba(cls, org, temba):
-        print temba.__dict__
-        message = cls()
-        message.org = org
-        message.id = temba.id
-        message.broadcast = Broadcast.get_or_fetch(org, temba.broadcast)
-        message.contact = Contact.get_or_fetch(org, temba.contact)
-        message.urn = URN.create_from_temba(temba.urn)
-        message.status = temba.status
-        message.type = temba.type
-        message.labels = temba.labels
-        message.direction = temba.direction
-        message.archived = temba.archived
-        message.text = temba.text
-        message.delivered_on = temba.delivered_on
-        message.sent_on = temba.sent_on
-        message.created_on = temba.created_on
-        message.save()
-        return message
 
     _collection = 'messages'
 
@@ -365,7 +282,7 @@ class Message(BaseDocument):
     urn = field.DynamicDocument()
     status = field.Char()
     type = field.Char()
-    labels = field.Char()
+    labels = orm.List(type=Label)
     direction = field.Char()
     archived = field.Char()
     text = field.Char()
@@ -434,19 +351,6 @@ class FlowStep(orm.EmbeddedDocument):
 
 
 class Run(BaseDocument):
-    @classmethod
-    def create_from_temba(cls, org, temba):
-        run = cls()
-        run.org = org
-        run.id = temba.id
-        run.flow = Flow.get_or_fetch(org, temba.flow)
-        run.contact = Contact.get_or_fetch(org, temba.contact)
-        run.steps.append(FlowStep.create_from_temba_list(temba.steps))
-        run.values.append(RunValueSet.create_from_temba_list(temba.values))
-        run.created_on = temba.created_on
-        run.completed = temba.completed
-        run.save()
-        return run
 
     _collection = 'run'
 
@@ -480,16 +384,6 @@ class CategoryStats(orm.EmbeddedDocument):
 
 
 class Result(BaseDocument):
-    @classmethod
-    def create_from_temba(cls, org, temba):
-        result = cls()
-        result.org = org
-        result.boundary = temba.boundary
-        result.set = temba.set
-        result.unset = temba.unset
-        result.open_ended = temba.openended
-        result.label = temba.label
-        result.categories.append(CategoryStats.create_from_temba_list(temba.categories))
 
     _collection = 'result'
 
@@ -525,23 +419,7 @@ class Geometry(orm.EmbeddedDocument):
 class Boundary(BaseDocument):
     @classmethod
     def fetch(cls, org, uuid):
-        pass
-
-    @classmethod
-    def create_from_temba(cls, org, temba):
-        boundary = cls()
-        boundary.boundary = temba.boundary
-        boundary.name = temba.name
-        boundary.level = temba.level
-        boundary.parent = temba.parent
-        boundary.geometry.append(Geometry.create_from_temba_list(temba.geometry))
-
-    @classmethod
-    def create_from_temba_list(cls, org, temba_list):
-        obj_list = []
-        for temba in temba_list:
-            obj_list.append(cls.create_from_temba(org, temba))
-        return obj_list
+        return None
 
     _collection = 'boundaries'
 
@@ -550,3 +428,16 @@ class Boundary(BaseDocument):
     level = field.Char()
     parent = field.Char()
     geometry = orm.List(type=Geometry)
+
+
+Org.boundaries = orm.Lazy(type=Boundary, key='org._id')
+Org.results = orm.Lazy(type=Result, key='org._id')
+Org.runs = orm.Lazy(type=Run, key='org._id')
+Org.messages = orm.Lazy(type=Message, key='org._id')
+Org.flows = orm.Lazy(type=Flow, key='org._id')
+Org.labels = orm.Lazy(type=Label, key='org._id')
+Org.events = orm.Lazy(type=Event, key='org._id')
+Org.campaigns = orm.Lazy(type=Campaign, key='org._id')
+Org.broadcasts = orm.Lazy(type=Broadcast, key='org._id')
+Org.contacts = orm.Lazy(type=Contact, key='org._id')
+Org.groups = orm.Lazy(type=Group, key='org._id')
