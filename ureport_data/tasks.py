@@ -1,11 +1,16 @@
+import logging
 from celery import Celery
 from temba.base import TembaException
-from models import Org, BaseDocument
+
+from ureport_data.models import Org, BaseDocument
 import settings
+
+logging.basicConfig(format=settings.FORMAT)
+logger = logging.getLogger("tasks")
 
 __author__ = 'kenneth'
 
-app = Celery('tasks', broker=settings.BROKER_URL)
+app = Celery('ureport_data.tasks', broker=settings.BROKER_URL)
 
 app.conf.update(
     CELERY_TASK_RESULT_EXPIRES=3600,
@@ -24,5 +29,7 @@ def fetch_all(entities=None):
             try:
                 entity.fetch_objects(org)
             except TembaException as e:
-                print e #Todo Do something with this guy
+                logger.error("Temba is misbehaving: ", e)
                 continue
+            except Exception as e:
+                logger.error("Things are dead:", e)

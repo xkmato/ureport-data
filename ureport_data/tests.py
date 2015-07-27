@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime
-from models import Org, Urn, Contact, Group, Broadcast, Campaign, Event, Flow, Label, Message, Run, Boundary, Result
+
+from ureport_data.models import Org, Urn, Contact, Group, Broadcast, Campaign, Event, Flow, Label, Message, Run, Boundary, Result
 
 __author__ = 'kenneth'
 

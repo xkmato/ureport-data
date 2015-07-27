@@ -1,10 +1,12 @@
 import logging
 from datetime import datetime
+import sys
+
 import humongolus as orm
 import humongolus.field as field
-import sys
 from temba import TembaClient
 from temba.base import TembaNoSuchObjectError, TembaException
+
 import settings
 
 logging.basicConfig(format=settings.FORMAT)
@@ -101,12 +103,13 @@ class BaseDocument(orm.Document):
     @classmethod
     def create_from_temba_list(cls, org, temba_list):
         obj_list = []
+        q = None
         for temba in temba_list:
             if hasattr(temba, 'uuid'):
                 q = {'uuid': temba.uuid}
-            else:
+            elif hasattr(temba, 'id'):
                 q = {'id': temba.id}
-            if not cls.find_one(q):
+            if not q or not cls.find_one(q):
                 obj_list.append(cls.create_from_temba(org, temba))
         return obj_list
 
