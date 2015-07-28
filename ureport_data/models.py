@@ -131,20 +131,23 @@ class BaseDocument(orm.Document):
         return cls.create_from_temba(org, fetch(uuid))
 
     @classmethod
-    def fetch_objects(cls, org):
+    def fetch_objects(cls, org, pager=None):
         func = "get_%s" % cls._collection
         ls = LastSaved.find_one({'coll': cls._collection})
         after = getattr(ls, 'last_saved', None)
         fetch_all = getattr(org.get_temba_client(), func)
         try:
-            objs = cls.create_from_temba_list(org, fetch_all(after=after))
+            objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager))
             if not ls:
                 ls = LastSaved()
             ls.coll = cls._collection
             ls.last_saved = datetime.now(tz=org.timezone)
             ls.save()
         except TypeError:
-            objs = cls.create_from_temba_list(org, fetch_all())
+            try:
+                objs = cls.create_from_temba_list(org, fetch_all(pager=pager))
+            except TypeError:
+                objs = cls.create_from_temba_list(org, fetch_all())
         return objs
 
 

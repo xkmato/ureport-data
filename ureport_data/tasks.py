@@ -1,6 +1,6 @@
 import logging
 from celery import Celery
-from temba.base import TembaException
+from temba.base import TembaException, TembaPager
 
 from ureport_data.models import Org, BaseDocument
 import settings
@@ -17,6 +17,7 @@ app.conf.update(
     CELERYBEAT_SCHEDULE=settings.CELERYBEAT_SCHEDULE
 )
 
+#b87eb439834a8069a0f0dd213c3fcc56f78b8781
 
 @app.task
 def fetch_all(entities=None):
@@ -27,9 +28,12 @@ def fetch_all(entities=None):
     for org in Org.find({"is_active": True}):
         for entity in entities:
             try:
-                entity.fetch_objects(org)
+                n = 1
+                while True:
+                    entity.fetch_objects(org, pager=TembaPager(n))
+                    n += 1
             except TembaException as e:
-                logger.error("Temba is misbehaving: ", e)
+                logger.error("Temba is misbehaving: %s", str(e))
                 continue
             except Exception as e:
-                logger.error("Things are dead:", e)
+                logger.error("Things are dead: %s", str(e))
