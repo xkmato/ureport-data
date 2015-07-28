@@ -40,6 +40,7 @@ class Org(orm.Document):
     language = field.Char()
     timezone = field.Char(default="UTC")
     api_token = field.Char(required=True)
+    is_active = field.Char(default=True)
     config = field.Char()
 
     def get_temba_client(self):

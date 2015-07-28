@@ -24,7 +24,7 @@ def fetch_all(entities=None):
     if not entities:
         entities = [cls for cls in BaseDocument.__subclasses__()]
     assert iter(entities)
-    for org in Org.find():
+    for org in Org.find({"is_active": True}):
         for entity in entities:
             try:
                 entity.fetch_objects(org)
