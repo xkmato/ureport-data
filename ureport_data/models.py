@@ -52,6 +52,14 @@ class Org(orm.Document):
 
         return TembaClient(host, self.api_token, user_agent=agent)
 
+    @classmethod
+    def create(cls, **kwargs):
+        org = cls()
+        for k,v in kwargs.items():
+            setattr(org, k, v)
+        org.save()
+        return org
+
 
 class BaseDocument(orm.Document):
     _db = settings.DATABASE
