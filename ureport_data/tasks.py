@@ -1,5 +1,4 @@
 import logging
-import os
 from celery import Celery
 from temba.base import TembaException, TembaPager
 
@@ -23,7 +22,7 @@ app.conf.update(
 def fetch_all(entities=None, orgs=None):
     print "Started Here"
     if not entities:
-        entities = [cls for cls in BaseDocument.__subclasses__()]
+        entities = [dict(name=cls) for cls in BaseDocument.__subclasses__()]
     if not orgs:
         orgs = Org.find({"is_active": True})
     else:
@@ -32,9 +31,9 @@ def fetch_all(entities=None, orgs=None):
     for org in orgs:
         for entity in entities:
             try:
-                n = int(os.environ.get('START_PAGE', 1))
+                n = entity.get('start_page', 1)
                 while True:
-                    entity.fetch_objects(org, pager=TembaPager(n))
+                    entity.get('name').fetch_objects(org, pager=TembaPager(n))
                     n += 1
             except TembaException as e:
                 logger.error("Temba is misbehaving: %s", str(e))
