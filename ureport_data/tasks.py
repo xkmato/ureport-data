@@ -1,4 +1,5 @@
 import logging
+import os
 from celery import Celery
 from temba.base import TembaException, TembaPager
 
@@ -17,18 +18,21 @@ app.conf.update(
     CELERYBEAT_SCHEDULE=settings.CELERYBEAT_SCHEDULE
 )
 
-#b87eb439834a8069a0f0dd213c3fcc56f78b8781
 
 @app.task
-def fetch_all(entities=None):
+def fetch_all(entities=None, orgs=None):
     print "Started Here"
     if not entities:
         entities = [cls for cls in BaseDocument.__subclasses__()]
+    if not orgs:
+        orgs = Org.find({"is_active": True})
+    else:
+        orgs = [Org.find_one(api_key) for api_key in orgs]
     assert iter(entities)
-    for org in Org.find({"is_active": True}):
+    for org in orgs:
         for entity in entities:
             try:
-                n = 1
+                n = int(os.environ.get('START_PAGE', 1))
                 while True:
                     entity.fetch_objects(org, pager=TembaPager(n))
                     n += 1
