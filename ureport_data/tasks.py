@@ -27,7 +27,7 @@ def fetch_all(entities=None, orgs=None):
     if not orgs:
         orgs = Org.find({"is_active": True})
     else:
-        orgs = [Org.find_one(api_key) for api_key in orgs]
+        orgs = [Org.find_one({'api_token': api_key}) for api_key in orgs]
     assert iter(entities)
     for org in orgs:
         for entity in entities:
