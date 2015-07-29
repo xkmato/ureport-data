@@ -21,6 +21,7 @@ class LastSaved(orm.Document):
 
     coll = field.Char()
     last_saved = field.TimeStamp()
+    org = field.DynamicDocument()
 
     @classmethod
     def update_or_create(cls, collection):
@@ -141,13 +142,14 @@ class BaseDocument(orm.Document):
     @classmethod
     def fetch_objects(cls, org, pager=None):
         func = "get_%s" % cls._collection
-        ls = LastSaved.find_one({'coll': cls._collection})
+        ls = LastSaved.find_one({'coll': cls._collection, 'org.id': org._id})
         after = getattr(ls, 'last_saved', None)
         fetch_all = getattr(org.get_temba_client(), func)
         try:
             objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager))
             if not ls:
                 ls = LastSaved()
+                ls.org = org
             ls.coll = cls._collection
             ls.last_saved = datetime.now(tz=org.timezone)
             ls.save()
@@ -441,17 +443,19 @@ class Boundary(BaseDocument):
     geometry = orm.List(type=Geometry)
 
 
-Org.boundaries = orm.Lazy(type=Boundary, key='org._id')
-Org.results = orm.Lazy(type=Result, key='org._id')
-Org.runs = orm.Lazy(type=Run, key='org._id')
-Org.messages = orm.Lazy(type=Message, key='org._id')
-Org.flows = orm.Lazy(type=Flow, key='org._id')
-Org.labels = orm.Lazy(type=Label, key='org._id')
-Org.events = orm.Lazy(type=Event, key='org._id')
-Org.campaigns = orm.Lazy(type=Campaign, key='org._id')
-Org.broadcasts = orm.Lazy(type=Broadcast, key='org._id')
-Org.contacts = orm.Lazy(type=Contact, key='org._id')
-Org.groups = orm.Lazy(type=Group, key='org._id')
+Org.boundaries = orm.Lazy(type=Boundary, key='org.id')
+Org.results = orm.Lazy(type=Result, key='org.id')
+Org.runs = orm.Lazy(type=Run, key='org.id')
+Org.messages = orm.Lazy(type=Message, key='org.id')
+Org.flows = orm.Lazy(type=Flow, key='org.id')
+Org.labels = orm.Lazy(type=Label, key='org.id')
+Org.events = orm.Lazy(type=Event, key='org.id')
+Org.campaigns = orm.Lazy(type=Campaign, key='org.id')
+Org.broadcasts = orm.Lazy(type=Broadcast, key='org.id')
+Org.contacts = orm.Lazy(type=Contact, key='org.id')
+Org.groups = orm.Lazy(type=Group, key='org.id')
+Contact.messages = orm.Lazy(type=Message, key='contact.id')
+Broadcast.messages = orm.Lazy(type=Message, key='broadcast.id')
 Value = RunValueSet
 Step = FlowStep
 Categorie = CategoryStats
