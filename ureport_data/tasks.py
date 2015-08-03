@@ -1,6 +1,7 @@
 import logging
 from celery import Celery
-from temba.base import TembaException, TembaPager
+from retrying import retry
+from temba.base import TembaException, TembaPager, TembaAPIError, TembaConnectionError
 
 from ureport_data.models import Org, BaseDocument
 import settings
@@ -18,6 +19,16 @@ app.conf.update(
 )
 
 
+def retry_if_temba_api_or_connection_error(exception):
+    return isinstance(exception, TembaAPIError) or isinstance(exception, TembaConnectionError)
+
+
+@retry(retry_on_exception=retry_if_temba_api_or_connection_error, stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+       wait_fixed=settings.RETRY_WAIT_FIXED)
+def fetch_entity(entity, org, n):
+    entity.get('name').fetch_objects(org, pager=TembaPager(n))
+
+
 @app.task
 def fetch_all(entities=None, orgs=None):
     print "Started Here"
@@ -33,7 +44,7 @@ def fetch_all(entities=None, orgs=None):
             try:
                 n = entity.get('start_page', 1)
                 while True:
-                    entity.get('name').fetch_objects(org, pager=TembaPager(n))
+                    fetch_entity(entity, org, n)
                     n += 1
             except TembaException as e:
                 logger.error("Temba is misbehaving: %s", str(e))

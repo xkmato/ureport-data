@@ -456,6 +456,7 @@ Org.contacts = orm.Lazy(type=Contact, key='org.id')
 Org.groups = orm.Lazy(type=Group, key='org.id')
 Contact.messages = orm.Lazy(type=Message, key='contact.id')
 Broadcast.messages = orm.Lazy(type=Message, key='broadcast.id')
+Flow.flow_runs = orm.Lazy(type=Run, key='flow.id')
 Value = RunValueSet
 Step = FlowStep
 Categorie = CategoryStats

@@ -18,3 +18,6 @@ CELERYBEAT_SCHEDULE = {
         'args': ()
     }
 }
+
+RETRY_MAX_ATTEMPTS = int(os.environ.get('RETRY_MAX_ATTEMPTS', 10))
+RETRY_WAIT_FIXED = int(os.environ.get('RETRY_WAIT_FIXED', 15*60*1000))
