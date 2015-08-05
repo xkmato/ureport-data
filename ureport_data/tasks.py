@@ -32,9 +32,10 @@ def retry_if_temba_api_or_connection_error(exception):
 @retry(retry_on_exception=retry_if_temba_api_or_connection_error, stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
        wait_fixed=settings.RETRY_WAIT_FIXED)
 def fetch_entity(entity, org, n):
+    entity = entity.get('name')
     logger.info("Trying to fetch Object: %s for Org:%s Page %s at %s", str(entity.__class__), org.name, str(n),
                 str(datetime.now()))
-    entity.get('name').fetch_objects(org, pager=TembaPager(n))
+    entity.fetch_objects(org, pager=TembaPager(n))
 
 
 @app.task
