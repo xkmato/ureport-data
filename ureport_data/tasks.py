@@ -22,6 +22,8 @@ app.conf.update(
 
 
 def retry_if_temba_api_or_connection_error(exception):
+    logger.warning("Raised and exception: %s - Retrying in %s minutes", str(exception),
+                   str(settings.RETRY_WAIT_FIXED/60000))
     if isinstance(exception, TembaAPIError) and isinstance(exception.caused_by,
                                                            requests.HTTPError
                                                            ) and 399 < exception.caused_by.response.status_code < 499:
@@ -33,8 +35,6 @@ def retry_if_temba_api_or_connection_error(exception):
        wait_fixed=settings.RETRY_WAIT_FIXED)
 def fetch_entity(entity, org, n):
     entity = entity.get('name')
-    logger.info("Trying to fetch Object: %s for Org:%s Page %s at %s", str(entity), org.name, str(n),
-                str(datetime.now()))
     entity.fetch_objects(org, pager=TembaPager(n))
 
 
