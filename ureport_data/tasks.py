@@ -1,5 +1,6 @@
 import logging
 from celery import Celery
+import requests
 from retrying import retry
 from temba.base import TembaException, TembaPager, TembaAPIError, TembaConnectionError
 
@@ -20,6 +21,10 @@ app.conf.update(
 
 
 def retry_if_temba_api_or_connection_error(exception):
+    if isinstance(exception, TembaAPIError) and isinstance(exception.caused_by,
+                                                           requests.HTTPError
+                                                           ) and exception.caused_by.response.status_code == 404:
+        return False
     return isinstance(exception, TembaAPIError) or isinstance(exception, TembaConnectionError)
 
 
