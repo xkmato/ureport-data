@@ -1,6 +1,6 @@
 import logging
+import traceback
 from celery import Celery
-from datetime import datetime
 import requests
 from retrying import retry
 from temba.base import TembaException, TembaPager, TembaAPIError, TembaConnectionError
@@ -22,12 +22,12 @@ app.conf.update(
 
 
 def retry_if_temba_api_or_connection_error(exception):
-    logger.warning("Raised and exception: %s - Retrying in %s minutes", str(exception),
-                   str(settings.RETRY_WAIT_FIXED/60000))
     if isinstance(exception, TembaAPIError) and isinstance(exception.caused_by,
                                                            requests.HTTPError
-                                                           ) and 399 < exception.caused_by.response.status_code < 499:
+                                                           ) and 399 < exception.caused_by.response.status_code < 500:
         return False
+    logger.warning("Raised an exception: %s - Retrying in %s minutes", str(exception),
+                   str(settings.RETRY_WAIT_FIXED/60000))
     return isinstance(exception, TembaAPIError) or isinstance(exception, TembaConnectionError)
 
 
@@ -35,6 +35,7 @@ def retry_if_temba_api_or_connection_error(exception):
        wait_fixed=settings.RETRY_WAIT_FIXED)
 def fetch_entity(entity, org, n):
     entity = entity.get('name')
+    logger.info("Fetching Object of type: %s for Org: %s on Page %s", str(entity), org.name, str(n))
     entity.fetch_objects(org, pager=TembaPager(n))
 
 
@@ -56,7 +57,7 @@ def fetch_all(entities=None, orgs=None):
                     fetch_entity(entity, org, n)
                     n += 1
             except TembaException as e:
-                logger.error("Temba is misbehaving: %s", str(e))
+                logger.error("Temba is misbehaving: %s - No retry", str(e))
                 continue
             except Exception as e:
-                logger.error("Things are dead: %s", str(e))
+                logger.error("Things are dead: %s - No retry", str(traceback.format_exc()))

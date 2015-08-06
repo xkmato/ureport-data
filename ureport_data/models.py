@@ -176,7 +176,7 @@ class Urn(orm.EmbeddedDocument):
     @classmethod
     def create_from_temba(cls, temba):
         urn = cls()
-        if len(temba.split(':')) > 1:
+        if temba and len(temba.split(':')) > 1:
             urn.type, urn.identity = tuple(temba.split(':'))
             return urn
         urn.identity = temba
