@@ -4,6 +4,7 @@ import sys
 
 import humongolus as orm
 import humongolus.field as field
+import pymongo
 from temba import TembaClient
 from temba.base import TembaNoSuchObjectError, TembaException
 
@@ -67,6 +68,7 @@ class BaseDocument(orm.Document):
 
     org = field.DynamicDocument()
     created_on = field.TimeStamp()
+    org_oid = field.ObjectId()
 
     @classmethod
     def create_from_temba(cls, org, temba):
@@ -142,17 +144,10 @@ class BaseDocument(orm.Document):
     @classmethod
     def fetch_objects(cls, org, pager=None):
         func = "get_%s" % cls._collection
-        ls = LastSaved.find_one({'coll': cls._collection, 'org.id': org._id})
-        after = getattr(ls, 'last_saved', None)
         fetch_all = getattr(org.get_temba_client(), func)
+        after = cls.find().sort("created_on", pymongo.DESCENDING).next().created_on
         try:
             objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager))
-            if not ls:
-                ls = LastSaved()
-                ls.org = org
-            ls.coll = cls._collection
-            ls.last_saved = datetime.now(tz=org.timezone)
-            ls.save()
         except TypeError:
             try:
                 objs = cls.create_from_temba_list(org, fetch_all(pager=pager))
@@ -217,7 +212,7 @@ class Campaign(BaseDocument):
 
     uuid = field.Char()
     name = field.Char()
-    group = field.DocumentId
+    group = field.DynamicDocument()
 
 
 class Event(BaseDocument):
