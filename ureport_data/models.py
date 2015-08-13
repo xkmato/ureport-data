@@ -146,9 +146,12 @@ class BaseDocument(orm.Document):
     def fetch_objects(cls, org, pager=None):
         func = "get_%s" % cls._collection
         fetch_all = getattr(org.get_temba_client(), func)
-        after = cls.find().sort("created_on", pymongo.DESCENDING).next().created_on
-        tz = pytz.timezone(org.timezone)
-        after = tz.localize(after)
+        try:
+            after = cls.find().sort("created_on", pymongo.DESCENDING).next().created_on
+            tz = pytz.timezone(org.timezone)
+            after = tz.localize(after)
+        except:
+            after = None
         try:
             objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager))
         except TypeError:
