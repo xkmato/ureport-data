@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 import sys
+import traceback
 
 import humongolus as orm
 import humongolus.field as field
@@ -150,7 +151,9 @@ class BaseDocument(orm.Document):
             after = cls.find().sort("created_on", pymongo.DESCENDING).next().created_on
             tz = pytz.timezone(org.timezone)
             after = tz.localize(after)
-        except:
+        except AttributeError as e:
+            logger.error("%s" % str(e))
+            logger.error("%s", str(traceback.format_exc()))
             after = None
         try:
             objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager))
