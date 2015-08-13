@@ -144,17 +144,16 @@ class BaseDocument(orm.Document):
         return cls.create_from_temba(org, fetch(uuid))
 
     @classmethod
-    def fetch_objects(cls, org, pager=None):
+    def fetch_objects(cls, org, pager=None, af=None):
         func = "get_%s" % cls._collection
         fetch_all = getattr(org.get_temba_client(), func)
         try:
-            after = cls.find().sort("created_on", pymongo.DESCENDING).next().created_on
+            after = cls.find({'org.id': org._id}).sort("created_on", pymongo.DESCENDING).next().created_on
             tz = pytz.timezone(org.timezone)
             after = tz.localize(after)
-        except AttributeError as e:
-            logger.error("%s" % str(e))
-            logger.error("%s", str(traceback.format_exc()))
+        except StopIteration:
             after = None
+        if af: after = None
         try:
             objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager))
         except TypeError:
