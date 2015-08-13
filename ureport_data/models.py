@@ -5,6 +5,7 @@ import sys
 import humongolus as orm
 import humongolus.field as field
 import pymongo
+import pytz
 from temba import TembaClient
 from temba.base import TembaNoSuchObjectError, TembaException
 
@@ -146,6 +147,8 @@ class BaseDocument(orm.Document):
         func = "get_%s" % cls._collection
         fetch_all = getattr(org.get_temba_client(), func)
         after = cls.find().sort("created_on", pymongo.DESCENDING).next().created_on
+        tz = pytz.timezone(org.timezone)
+        after = tz.localize(after)
         try:
             objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager))
         except TypeError:
