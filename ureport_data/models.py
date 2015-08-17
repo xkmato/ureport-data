@@ -67,6 +67,7 @@ class Org(orm.Document):
 
 class BaseDocument(orm.Document):
     _db = settings.DATABASE
+    fetch_key = 'uuids'
 
     org = field.DynamicDocument()
     created_on = field.TimeStamp()
@@ -116,6 +117,9 @@ class BaseDocument(orm.Document):
 
     @classmethod
     def create_from_temba_list(cls, org, temba_list):
+        if len(temba_list) > 0 and hasattr(temba_list[0], 'contact'):
+            contacts = [t.contact for t in temba_list]
+            Contact.get_objects_from_uuids(org, contacts)
         obj_list = []
         q = None
         for temba in temba_list:
@@ -128,13 +132,26 @@ class BaseDocument(orm.Document):
         return obj_list
 
     @classmethod
+    def _in_not_in(cls, uuids):
+        k = cls.fetch_key.rstrip('s')
+        objs = list(cls.find({k: {'$in': uuids}}))
+        e_uuids = [getattr(c, k) for c in objs]
+        return objs, list(set(uuids)-set(e_uuids))
+
+    @classmethod
     def get_objects_from_uuids(cls, org, uuids):
-        objs = []
-        for uuid in uuids:
-            try:
-                objs.append(cls.get_or_fetch(org, uuid))
-            except TembaNoSuchObjectError:
-                continue
+        func = "get_%s" % cls._collection
+        client = org.get_temba_client()
+        fetch_all = getattr(client, func)
+        objs, not_in = cls._in_not_in(uuids)
+
+        def chunks(l, n):
+            for i in xrange(0, len(l), n):
+                yield l[i:i+n]
+
+        if not_in:
+            for chunk in chunks(not_in, getattr(settings, 'FETCH_MAX_UUIDS', 50)):
+                objs.append(cls.create_from_temba_list(org, fetch_all(**{cls.fetch_key: chunk})))
         return objs
 
     @classmethod
@@ -206,6 +223,7 @@ class Contact(BaseDocument):
 
 class Broadcast(BaseDocument):
     _collection = 'broadcasts'
+    fetch_key = 'ids'
 
     id = field.Integer()
     urns = orm.List(type=Urn)
@@ -295,6 +313,7 @@ class Flow(BaseDocument):
 class Message(BaseDocument):
 
     _collection = 'messages'
+    fetch_key = 'ids'
 
     id = field.Integer()
     broadcast = field.DynamicDocument()
@@ -373,6 +392,7 @@ class FlowStep(orm.EmbeddedDocument):
 class Run(BaseDocument):
 
     _collection = 'runs'
+    fetch_key = 'ids'
 
     id = field.Integer()
     flow = field.DynamicDocument()
@@ -404,6 +424,7 @@ class CategoryStats(orm.EmbeddedDocument):
 class Result(BaseDocument):
 
     _collection = 'results'
+    fetch_key = None
 
     boundary = field.Char()
     set = field.Integer()
@@ -438,6 +459,7 @@ class Boundary(BaseDocument):
         return None
 
     _collection = 'boundaries'
+    fetch_key = None
 
     boundary = field.Char()
     name = field.Char()
