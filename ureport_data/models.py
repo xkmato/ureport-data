@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime
 import sys
-import traceback
 
 import humongolus as orm
 import humongolus.field as field
@@ -165,7 +164,7 @@ class BaseDocument(orm.Document):
         func = "get_%s" % cls._collection
         fetch_all = getattr(org.get_temba_client(), func)
         try:
-            after = cls.find({'org.id': org._id}).sort("created_on", pymongo.DESCENDING).next().created_on
+            after = cls.find({'org.id': org._id}).sort("modified_on", pymongo.DESCENDING).next().modified_on
             tz = pytz.timezone(org.timezone)
             after = tz.localize(after)
         except StopIteration:
