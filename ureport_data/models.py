@@ -164,7 +164,7 @@ class BaseDocument(orm.Document):
         func = "get_%s" % cls._collection
         fetch_all = getattr(org.get_temba_client(), func)
         try:
-            after = cls.find({'org.id': org._id}).sort("modified_on", pymongo.DESCENDING).next().modified_on
+            after = cls.find({'org.id': org._id}).sort("__modified__", pymongo.DESCENDING).next().modified
             tz = pytz.timezone(org.timezone)
             after = tz.localize(after)
         except StopIteration:
