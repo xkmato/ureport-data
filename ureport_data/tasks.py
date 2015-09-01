@@ -36,7 +36,10 @@ def retry_if_temba_api_or_connection_error(exception):
 def fetch_entity(entity, org, n, af=None):
     entity = entity.get('name')
     logger.info("Fetching Object of type: %s for Org: %s on Page %s", str(entity), org.name, str(n))
-    entity.fetch_objects(org, pager=TembaPager(n), af=af)
+    if 'flows' in entity:
+        entity.fetch_objects(org, pager=TembaPager(n), af=af, **{'flows': entity.get('flows')})
+    else:
+        entity.fetch_objects(org, pager=TembaPager(n), af=af)
 
 
 @app.task

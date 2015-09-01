@@ -160,7 +160,7 @@ class BaseDocument(orm.Document):
         return cls.create_from_temba(org, fetch(uuid))
 
     @classmethod
-    def fetch_objects(cls, org, pager=None, af=None):
+    def fetch_objects(cls, org, pager=None, af=None, **kwargs):
         func = "get_%s" % cls._collection
         fetch_all = getattr(org.get_temba_client(), func)
         try:
@@ -171,7 +171,10 @@ class BaseDocument(orm.Document):
             after = None
         if af: after = None
         try:
-            objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager))
+            if 'flows' in kwargs:
+                objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager, flows=kwargs.get('flows')))
+            else:
+                objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager))
         except TypeError:
             try:
                 objs = cls.create_from_temba_list(org, fetch_all(pager=pager))
