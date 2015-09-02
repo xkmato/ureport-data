@@ -57,6 +57,7 @@ def fetch_all(entities=None, orgs=None, af=None):
     for org in orgs:
         for entity in entities:
             try:
+                logger.info('Entity %s' % entity)
                 n = entity.get('start_page', 1)
                 while True:
                     fetch_entity(entity, org, n, af=af)
