@@ -6,3 +6,4 @@ model_couch.py.txt
 celerybeat-schedule
 build
 dist
+src

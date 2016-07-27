@@ -6,8 +6,9 @@ import humongolus as orm
 import humongolus.field as field
 import pymongo
 import pytz
-from temba import TembaClient
-from temba.base import TembaNoSuchObjectError, TembaException
+from temba_client.v2 import TembaClient
+from temba_client.exceptions import TembaNoSuchObjectError, TembaException
+from temba_client.v2.types import ObjectRef
 
 import settings
 
@@ -47,13 +48,8 @@ class Org(orm.Document):
     config = field.Char()
 
     def get_temba_client(self):
-        host = getattr(settings, 'SITE_API_HOST', None)
         agent = getattr(settings, 'SITE_API_USER_AGENT', None)
-
-        if not host:
-            host = '%s/api/v1' % settings.API_ENDPOINT  # UReport sites use this
-
-        return TembaClient(host, self.api_token, user_agent=agent)
+        return TembaClient('https://app.rapidpro.io', self.api_token, user_agent=agent)
 
     @classmethod
     def create(cls, **kwargs):
@@ -66,7 +62,7 @@ class Org(orm.Document):
 
 class BaseDocument(orm.Document):
     _db = settings.DATABASE
-    fetch_key = 'uuids'
+    fetch_key = 'uuid'
 
     org = field.DynamicDocument()
     created_on = field.TimeStamp()
@@ -102,36 +98,40 @@ class BaseDocument(orm.Document):
     def get_or_fetch(cls, org, uuid):
         if uuid == None: return None
         if hasattr(cls, 'uuid'):
-            obj = cls.find_one({'uuid': uuid})
+            obj = cls.find_one({'uuid': uuid.uuid}) if isinstance(uuid, ObjectRef) else cls.find_one({'uuid': uuid})
             if cls == Label:
                 obj = cls.find_one({'name': uuid})
         else:
             obj = cls.find_one({'id': uuid})
         if not obj:
             try:
-                obj = cls.fetch(org, uuid)
+                obj = cls.fetch(org, uuid.uuid) if isinstance(uuid, ObjectRef) else cls.fetch(org, uuid)
+            except AttributeError:
+                obj = uuid.uuid if isinstance(uuid, ObjectRef) else uuid
             except (TembaNoSuchObjectError, TembaException):
                 obj = None
         return obj
 
     @classmethod
-    def create_from_temba_list(cls, org, temba_list):
-        if len(temba_list) > 0 and hasattr(temba_list[0], 'contact'):
-            contacts = [t.contact for t in temba_list]
-            Contact.get_objects_from_uuids(org, contacts)
+    def create_from_temba_list(cls, org, temba_lists):
         obj_list = []
-        q = None
-        for temba in temba_list:
-            if hasattr(temba, 'uuid'):
-                q = {'uuid': temba.uuid}
-            elif hasattr(temba, 'id'):
-                q = {'id': temba.id}
-            if not q or not cls.find_one(q):
-                obj_list.append(cls.create_from_temba(org, temba))
+        for temba_list in temba_lists.iterfetches():
+            if len(temba_list) > 0 and hasattr(temba_list[0], 'contact'):
+                contacts = [t.contact for t in temba_list]
+                Contact.get_objects_from_uuids(org, contacts)
+            q = None
+            for temba in temba_list:
+                if hasattr(temba, 'uuid'):
+                    q = {'uuid': temba.uuid}
+                elif hasattr(temba, 'id'):
+                    q = {'id': temba.id}
+                if not q or not cls.find_one(q):
+                    obj_list.append(cls.create_from_temba(org, temba))
         return obj_list
 
     @classmethod
     def _in_not_in(cls, uuids):
+        uuids = [u.uuid for u in uuids] if isinstance(uuids[0], ObjectRef) else uuids
         k = cls.fetch_key.rstrip('s')
         objs = list(cls.find({k: {'$in': uuids}}))
         e_uuids = [getattr(c, k) for c in objs]
@@ -156,11 +156,11 @@ class BaseDocument(orm.Document):
     @classmethod
     def fetch(cls, org, uuid):
         func = "get_%s" % cls._collection
-        fetch = getattr(org.get_temba_client(), func.rstrip('s'))
-        return cls.create_from_temba(org, fetch(uuid))
+        fetch = getattr(org.get_temba_client(), func)
+        return cls.create_from_temba(org, fetch(**{cls.fetch_key: uuid}).all()[0])
 
     @classmethod
-    def fetch_objects(cls, org, pager=None, af=None, **kwargs):
+    def fetch_objects(cls, org, af=None, **kwargs):
         func = "get_%s" % cls._collection
         fetch_all = getattr(org.get_temba_client(), func)
         try:
@@ -170,16 +170,13 @@ class BaseDocument(orm.Document):
         except StopIteration:
             after = None
         if af: after = None
-        try:
-            if 'flows' in kwargs:
-                objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager, flows=kwargs.get('flows')))
+        if 'flows' in kwargs:
+            objs = cls.create_from_temba_list(org, fetch_all(after=after, flows=kwargs.get('flows')))
+        else:
+            if cls.__name__ == 'Message':
+                objs = cls.create_from_temba_list(org, fetch_all(after=after, folder='inbox'))
             else:
-                objs = cls.create_from_temba_list(org, fetch_all(after=after, pager=pager))
-        except TypeError:
-            try:
-                objs = cls.create_from_temba_list(org, fetch_all(pager=pager))
-            except TypeError:
-                objs = cls.create_from_temba_list(org, fetch_all())
+                objs = cls.create_from_temba_list(org, fetch_all(after=after))
         return objs
 
 
@@ -225,7 +222,7 @@ class Contact(BaseDocument):
 
 class Broadcast(BaseDocument):
     _collection = 'broadcasts'
-    fetch_key = 'ids'
+    fetch_key = 'id'
 
     id = field.Integer()
     urns = orm.List(type=Urn)
@@ -292,6 +289,7 @@ class Ruleset(orm.EmbeddedDocument):
 class Label(BaseDocument):
 
     _collection = 'labels'
+    fetch_key = 'uuid'
 
     uuid = field.Char()
     name = field.Char()
@@ -315,7 +313,7 @@ class Flow(BaseDocument):
 class Message(BaseDocument):
 
     _collection = 'messages'
-    fetch_key = 'ids'
+    fetch_key = 'id'
 
     id = field.Integer()
     broadcast = field.DynamicDocument()
@@ -394,10 +392,10 @@ class FlowStep(orm.EmbeddedDocument):
 class Run(BaseDocument):
 
     _collection = 'runs'
-    fetch_key = 'ids'
+    fetch_key = 'id'
 
     id = field.Integer()
-    flow = field.DynamicDocument()
+    flow = field.Char()
     contact = field.DynamicDocument()
     steps = orm.List(type=FlowStep)
     values = orm.List(type=RunValueSet)

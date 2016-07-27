@@ -17,7 +17,7 @@ class FakeTemba(object):
 
 class TestModels(unittest.TestCase):
     def setUp(self):
-        org = Org.find_one()
+        org = Org.create(name='Test GIC', api_token='97ce9920f956cfd6aa8ddd64329c5d236572a2c5')
         self.org = org
         self.urns = ['tel:1234', 'twitter:5678', '876565']
         self.temba_group = FakeTemba(uuid='090IOU98', name='test_group', size=1)

@@ -3,7 +3,7 @@ import traceback
 from celery import Celery
 import requests
 from retrying import retry
-from temba.base import TembaException, TembaPager, TembaAPIError, TembaConnectionError
+from temba_client.exceptions import TembaException, TembaConnectionError
 
 from ureport_data.models import Org, BaseDocument
 import settings
@@ -22,26 +22,29 @@ app.conf.update(
 
 
 def retry_if_temba_api_or_connection_error(exception):
-    if isinstance(exception, TembaAPIError) and isinstance(exception.caused_by,
+    if isinstance(exception, TembaException) and isinstance(exception.caused_by,
                                                            requests.HTTPError
                                                            ) and 399 < exception.caused_by.response.status_code < 500:
         return False
     logger.warning("Raised an exception: %s - Retrying in %s minutes", str(exception),
                    str(settings.RETRY_WAIT_FIXED/60000))
-    return isinstance(exception, TembaAPIError) or isinstance(exception, TembaConnectionError)
+    return isinstance(exception, TembaException) or isinstance(exception, TembaConnectionError)
 
 
 @retry(retry_on_exception=retry_if_temba_api_or_connection_error, stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
        wait_fixed=settings.RETRY_WAIT_FIXED)
-def fetch_entity(entity, org, n, af=None):
+def fetch_entity(entity, org, af=None):
     flows = entity.get('flows', None)
     entity = entity.get('name')
-    logger.info("Fetching Object of type: %s for Org: %s on Page %s", str(entity), org.name, str(n))
+    logger.info("Fetching Object of type: %s for Org: %s on Page %s", str(entity), org.name)
     if flows:
         logger.info("Fetching Runs for flows %s", str(flows))
-        entity.fetch_objects(org, pager=TembaPager(n), af=af, **{'flows': flows})
+        entity.fetch_objects(org, af=af, **{'flows': flows})
     else:
-        entity.fetch_objects(org, pager=TembaPager(n), af=af)
+        if entity.__name__ == "Message":
+            entity.fetch_objects(org, af=af)
+        else:
+            entity.fetch_objects(org, af=af)
 
 
 @app.task
@@ -58,10 +61,7 @@ def fetch_all(entities=None, orgs=None, af=None):
         for entity in entities:
             try:
                 logger.info('Entity %s' % entity)
-                n = entity.get('start_page', 1)
-                while True:
-                    fetch_entity(entity, org, n, af=af)
-                    n += 1
+                fetch_entity(entity, org, af=af)
             except TembaException as e:
                 logger.error("Temba is misbehaving: %s - No retry", str(e))
                 continue
