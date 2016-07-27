@@ -131,7 +131,7 @@ class BaseDocument(orm.Document):
 
     @classmethod
     def _in_not_in(cls, uuids):
-        uuids = [u.uuid for u in uuids] if isinstance(uuids[0], ObjectRef) else uuids
+        uuids = [u.uuid for u in uuids]
         k = cls.fetch_key.rstrip('s')
         objs = list(cls.find({k: {'$in': uuids}}))
         e_uuids = [getattr(c, k) for c in objs]
