@@ -163,13 +163,15 @@ class BaseDocument(orm.Document):
     def fetch_objects(cls, org, af=None, **kwargs):
         func = "get_%s" % cls._collection
         fetch_all = getattr(org.get_temba_client(), func)
-        try:
-            after = cls.find({'org.id': org._id}).sort("__modified__", pymongo.DESCENDING).next().modified
-            tz = pytz.timezone(org.timezone)
-            after = tz.localize(after)
-        except StopIteration:
+        if af:
             after = None
-        if af: after = None
+        else:
+            try:
+                after = cls.find({'org.id': org._id}).sort("created_on", pymongo.DESCENDING).next().modified
+                tz = pytz.timezone(org.timezone)
+                after = tz.localize(after)
+            except StopIteration:
+                after = None
         if 'flows' in kwargs:
             objs = cls.create_from_temba_list(org, fetch_all(after=after, flows=kwargs.get('flows')))
         else:
