@@ -338,6 +338,7 @@ class Message(BaseDocument):
 class RunValueSet(orm.EmbeddedDocument):
     @classmethod
     def create_from_temba(cls, temba):
+        logging.info(temba)
         run_value_set = cls()
         run_value_set.node = temba.node
         run_value_set.category = temba.category
@@ -351,6 +352,7 @@ class RunValueSet(orm.EmbeddedDocument):
     @classmethod
     def create_from_temba_list(cls, temba_list):
         obj_list = []
+        logging.info(temba_list)
         for temba in temba_list:
             obj_list.append(cls.create_from_temba(temba))
         return obj_list
