@@ -70,6 +70,7 @@ class BaseDocument(orm.Document):
 
     @classmethod
     def create_from_temba(cls, org, temba):
+        logging.info("Temba and type:%s - %s" % (temba, type(temba)))
         obj = cls()
         obj.org = org
         for key, value in temba.__dict__.items():
@@ -120,6 +121,7 @@ class BaseDocument(orm.Document):
                 contacts = [t.contact for t in temba_list]
                 Contact.get_objects_from_uuids(org, contacts)
             q = None
+            logging.info("Temba List: %s" % str(temba_list))
             for temba in temba_list:
                 if hasattr(temba, 'uuid'):
                     q = {'uuid': temba.uuid}
