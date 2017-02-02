@@ -75,20 +75,22 @@ class BaseDocument(orm.Document):
         obj.org = org
         for key, value in temba.__dict__.items():
             class_attr = getattr(cls, key, None)
+            temba_attr = getattr(temba, key)
+            logging.info("Attr: %s" % temba_attr)
             if class_attr is None:
                 continue
             if isinstance(class_attr, orm.List):
                 item_class = getattr(sys.modules[__name__], key.rstrip('s').capitalize())
                 if issubclass(item_class, BaseDocument):
-                    getattr(obj, key).extend(item_class.get_objects_from_uuids(org, getattr(temba, key)))
+                    getattr(obj, key).extend(item_class.get_objects_from_uuids(org, temba_attr))
                 if issubclass(item_class, orm.EmbeddedDocument):
-                    getattr(obj, key).extend(item_class.create_from_temba_list(getattr(temba, key)))
+                    getattr(obj, key).extend(item_class.create_from_temba_list(temba_attr))
             elif class_attr == field.DynamicDocument:
                 item_class = getattr(sys.modules[__name__], key.capitalize())
                 if issubclass(item_class, BaseDocument):
-                    setattr(obj, key, item_class.get_or_fetch(org, getattr(temba, key)))
+                    setattr(obj, key, item_class.get_or_fetch(org, temba_attr))
                 if issubclass(item_class, orm.EmbeddedDocument):
-                    setattr(obj, key, item_class.create_from_temba(getattr(temba, key)))
+                    setattr(obj, key, item_class.create_from_temba(temba_attr))
 
             else:
                 setattr(obj, key, value)
