@@ -121,8 +121,8 @@ class BaseDocument(orm.Document):
                 contacts = [t.contact for t in temba_list]
                 Contact.get_objects_from_uuids(org, contacts)
             q = None
-            logging.info("Temba List: %s" % str(temba_list))
             for temba in temba_list:
+                logging.info("Temba ==>: %s - %s" % (str(temba), type(temba)))
                 if hasattr(temba, 'uuid'):
                     q = {'uuid': temba.uuid}
                 elif hasattr(temba, 'id'):
