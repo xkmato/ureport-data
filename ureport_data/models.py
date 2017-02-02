@@ -70,7 +70,6 @@ class BaseDocument(orm.Document):
 
     @classmethod
     def create_from_temba(cls, org, temba):
-        logging.info("Temba and type:%s - %s" % (temba, type(temba)))
         obj = cls()
         obj.org = org
         for key, value in temba.__dict__.items():
@@ -83,7 +82,6 @@ class BaseDocument(orm.Document):
                 if issubclass(item_class, BaseDocument):
                     getattr(obj, key).extend(item_class.get_objects_from_uuids(org, temba_attr))
                 if issubclass(item_class, orm.EmbeddedDocument):
-                    logging.info("Attr: %s" % temba_attr)
                     getattr(obj, key).extend(item_class.create_from_temba_list(temba_attr))
             elif class_attr == field.DynamicDocument:
                 item_class = getattr(sys.modules[__name__], key.capitalize())
@@ -124,7 +122,6 @@ class BaseDocument(orm.Document):
                 Contact.get_objects_from_uuids(org, contacts)
             q = None
             for temba in temba_list:
-                logging.info("Temba ==>: %s - %s" % (str(temba), type(temba)))
                 if hasattr(temba, 'uuid'):
                     q = {'uuid': temba.uuid}
                 elif hasattr(temba, 'id'):
@@ -338,7 +335,6 @@ class Message(BaseDocument):
 class RunValueSet(orm.EmbeddedDocument):
     @classmethod
     def create_from_temba(cls, temba):
-        logging.info(temba)
         run_value_set = cls()
         run_value_set.node = temba.node
         run_value_set.category = temba.category
@@ -352,7 +348,6 @@ class RunValueSet(orm.EmbeddedDocument):
     @classmethod
     def create_from_temba_list(cls, temba_list):
         obj_list = []
-        logging.info(temba_list)
         for temba in temba_list:
             obj_list.append(cls.create_from_temba(temba))
         return obj_list
