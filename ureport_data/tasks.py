@@ -5,7 +5,7 @@ import requests
 from retrying import retry
 from temba_client.exceptions import TembaException, TembaConnectionError
 
-from ureport_data.models import Org, BaseDocument
+from ureport_data.models import Org, BaseDocument, Message, Run, Contact
 import settings
 
 logging.basicConfig(format=settings.FORMAT)
@@ -23,11 +23,11 @@ app.conf.update(
 
 def retry_if_temba_api_or_connection_error(exception):
     if isinstance(exception, TembaException) and isinstance(exception.caused_by,
-                                                           requests.HTTPError
-                                                           ) and 399 < exception.caused_by.response.status_code < 500:
+                                                            requests.HTTPError
+                                                            ) and 399 < exception.caused_by.response.status_code < 500:
         return False
     logger.warning("Raised an exception: %s - Retrying in %s minutes", str(exception),
-                   str(settings.RETRY_WAIT_FIXED/60000))
+                   str(settings.RETRY_WAIT_FIXED / 60000))
     return isinstance(exception, TembaException) or isinstance(exception, TembaConnectionError)
 
 
@@ -35,7 +35,7 @@ def retry_if_temba_api_or_connection_error(exception):
        wait_fixed=settings.RETRY_WAIT_FIXED)
 def fetch_entity(entity, org, af=None):
     flows = entity.get('flows', None)
-    entity = entity.get('name')
+    entity = eval(entity.get('name'))
     logger.info("Fetching Object of type: %s for Org: %s on Page", str(entity), org.name)
     if flows:
         logger.info("Fetching Runs for flows %s", str(flows))
