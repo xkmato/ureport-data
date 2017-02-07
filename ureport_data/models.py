@@ -393,7 +393,7 @@ class Run(BaseDocument):
 
     id = field.Integer()
     flow = field.Char()
-    contact = field.DynamicDocument()
+    contact = field.Char()
     steps = orm.List(type=FlowStep)
     values = orm.List(type=RunValueSet)
     completed = field.Char()
