@@ -41,10 +41,7 @@ def fetch_entity(entity, org, af=None):
         logger.info("Fetching Runs for flows %s", str(flows))
         entity.fetch_objects(org, af=af, **{'flows': flows})
     else:
-        if entity.__name__ == "Message":
-            entity.fetch_objects(org, af=af)
-        else:
-            entity.fetch_objects(org, af=af)
+        entity.fetch_objects(org, af=af)
 
 
 @app.task
