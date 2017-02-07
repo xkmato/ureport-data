@@ -368,11 +368,7 @@ class FlowStep(orm.EmbeddedDocument):
     def create_from_temba(cls, temba):
         flow_step = cls()
         flow_step.node = temba.node
-        flow_step.text = temba.text
-        flow_step.value = temba.value
-        flow_step.type = temba.type
-        flow_step.arrived_on = temba.arrived_on
-        flow_step.left_on = temba.left_on
+        flow_step.time = temba.time
         return flow_step
 
     @classmethod
@@ -390,6 +386,7 @@ class FlowStep(orm.EmbeddedDocument):
     type = field.Char()
     arrived_on = field.TimeStamp()
     left_on = field.TimeStamp()
+    time = field.TimeStamp()
 
 
 class Run(BaseDocument):
@@ -403,6 +400,27 @@ class Run(BaseDocument):
     steps = orm.List(type=FlowStep)
     values = orm.List(type=RunValueSet)
     completed = field.Char()
+    modified_on = field.TimeStamp()
+    exited_on = field.TimeStamp()
+    exit_type = field.Char()
+
+    @classmethod
+    def create_from_temba(cls, org, temba):
+        run = cls()
+        run.id = temba.id
+        run.flow = temba.flow.uuid
+        run.contact = temba.contact.uuid
+        run.created_on = temba.created_on
+        run.modified_on = temba.modified_on
+        run.exited_on = temba.exited_on
+        run.exit_type = temba.exit_type
+
+        run.steps = FlowStep.create_from_temba_list(temba.path)
+        run.values = RunValueSet.create_from_temba_list(temba.values.values())
+
+        run.save()
+
+
 
 
 class CategoryStats(orm.EmbeddedDocument):
