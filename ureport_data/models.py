@@ -338,9 +338,6 @@ class RunValueSet(orm.EmbeddedDocument):
         run_value_set = cls()
         run_value_set.node = temba.node
         run_value_set.category = temba.category
-        run_value_set.text = temba.text
-        run_value_set.rule_value = temba.rule_value
-        run_value_set.label = temba.label
         run_value_set.value = temba.value
         run_value_set.time = temba.time
         return run_value_set
