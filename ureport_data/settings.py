@@ -9,7 +9,7 @@ SITE_API_HOST = 'https://app.rapidpro.io/api/v2'
 API_ENDPOINT = 'https://app.rapidpro.io'
 BROKER_URL = 'redis://'
 
-cron_minutes = int(os.environ.get('FETCH_SLEEP', 60*24*7))
+cron_minutes = int(os.environ.get('FETCH_SLEEP', 60*24*2))
 
 CELERYBEAT_SCHEDULE = {
     'sync-contacts': {

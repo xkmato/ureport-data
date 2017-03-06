@@ -46,9 +46,10 @@ def fetch_entity(entity, org, af=None):
 
 @app.task
 def fetch_all(entities=None, orgs=None, af=None):
-    print "Started Here"
+    logging.info("Started Here")
+    logging.info("Only Fetch Runs, Messages, and Contacts for now")
     if not entities:
-        entities = [dict(name=cls) for cls in BaseDocument.__subclasses__()]
+        entities = [Message, Run, Contact]
     if not orgs:
         orgs = Org.find({"is_active": True})
     else:
