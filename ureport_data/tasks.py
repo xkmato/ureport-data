@@ -49,7 +49,7 @@ def fetch_all(entities=None, orgs=None, af=None):
     logging.info("Started Here")
     logging.info("Only Fetch Runs, Messages, and Contacts for now")
     if not entities:
-        entities = [Message, Run, Contact]
+        entities = [{'name': Message}, {'name': Run}, {'name': Contact}]
     if not orgs:
         orgs = Org.find({"is_active": True})
     else:
