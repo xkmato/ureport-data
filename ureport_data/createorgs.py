@@ -14,7 +14,7 @@ if __name__ == '__main__':
         print "API Key: String"
         print "Sync Now: String - Either of 'true' or 'false'"
     else:
-        c, name, key, sync = tuple(arguments)
+        c, name, key = tuple(arguments)
 
         o = Org.create(name=name, api_token=key)
         tasks.fetch_all.delay(orgs=[o.api_token])
